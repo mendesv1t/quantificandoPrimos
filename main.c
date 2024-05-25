@@ -158,7 +158,6 @@ int main(int argc, char * argv[]) {
         fprintf(stderr, "Digite ./main <nomeArquivo> <M (tamanho do buffer)> <qtd threads consumidoras> \n");
         return 1;
     }
-    printf("cu");
 
     char * nomeArquivo = argv[1];
     int M = atoi(argv[2]);
