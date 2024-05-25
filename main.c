@@ -1,29 +1,26 @@
-#include <pthread.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
 #include <semaphore.h>
 #include <math.h>
 
-
-sem_t slotCheio, slotVazio;
-sem_t mutexGeral;
+sem_t slotCheio, slotVazio, mutexGeral; 
 
 int * Buffer;
 int * vetor;
-int parada = 0;
 
 typedef struct {
-    int M;
-    char * nomeArquivo;
+  int M;
+  int qtdThreads;
+  char * nomeArquivo;
 } pArgs;
 
 typedef struct {
-    int id;
-    int M;
+  int id;
+  int M;
 } cArgs;
 
-
-int ehPrimo(long long int n) {
+int ehPrimo(int n) {
     int i;
     if (n <= 1) return 0;
     if (n == 2) return 1;
@@ -34,11 +31,11 @@ int ehPrimo(long long int n) {
 
 }
 
-/* método para inicializar vetor que em cada posição,
+/* método para inicializar vetor que em cada posição, 
  * cujo o id da thread se confere, haverá a contagem de primos
  * de cada thread.
  */
-void inicializaVetorContagem(int * vetor, int qtdThreads) {
+void inicializaVetorContagem(int qtdThreads) {
     for (int i = 0; i < qtdThreads+1; i++) {
         vetor[i] = 0;
     }
@@ -46,109 +43,114 @@ void inicializaVetorContagem(int * vetor, int qtdThreads) {
 
 //funcao para inserir um elemento no buffer
 void popula (int item, int M) {
-    static int in=0;
-    sem_wait(&slotVazio); //aguarda slot vazio para inserir
-    sem_wait(&mutexGeral); //exclusao mutua entre produtores (aqui geral para log)
+   static int in=0;
+   sem_wait(&slotVazio); //aguarda slot vazio para inserir
+   sem_wait(&mutexGeral); //exclusao mutua entre produtores (aqui geral para log)
+   
+   Buffer[in] = item; 
+   in = (in + 1) % M;
 
-    Buffer[in] = item;
-    in = (in + 1) % M;
-
-    sem_post(&mutexGeral);
-    sem_post(&slotCheio); //sinaliza um slot cheio
+   sem_post(&mutexGeral);
+   sem_post(&slotCheio); //sinaliza um slot cheio
 }
 
 //funcao para retirar  um elemento no buffer
 int consome (int M) {
 
-    int item;
-    static int out = 0;
+   int item;
+   static int out = 0;
 
-    sem_wait(&slotCheio); //aguarda slot cheio para retirar
-    sem_wait(&mutexGeral); //exclusao mutua entre consumidores (aqui geral para log)
+   sem_wait(&slotCheio); //aguarda slot cheio para retirar
+   sem_wait(&mutexGeral); //exclusao mutua entre consumidores (aqui geral para log)
 
-    item = Buffer[out];
-    Buffer[out] = 0;
-    out = (out + 1) % M;
-
-    sem_post(&mutexGeral);
-    sem_post(&slotVazio); //sinaliza um slot vazio
-    return item;
+   item = Buffer[out];
+   Buffer[out] = 0;
+   out = (out + 1) % M;
+   
+   sem_post(&mutexGeral);
+   sem_post(&slotVazio); //sinaliza um slot vazio
+   return item;
 }
 
 
 void *produtor(void * arg) {
 
-    pArgs * args =  (pArgs *) arg;
-    int M = args->M;
+  pArgs * args =  (pArgs *) arg;
+  int M = args->M;
 
-    FILE * arquivo = fopen(args->nomeArquivo, "rb");
+  FILE * arquivo = fopen(args->nomeArquivo, "rb");
+  
+ 
+  if (!arquivo) {
+   fprintf(stderr, "Erro na leitura do arquivo.\n");
+   exit(-1);
+  }
 
-
-    if (!arquivo) {
-        fprintf(stderr, "Erro na leitura do arquivo.\n");
-        exit(-1);
-    }
-
-    int item;
-    while(fread(&item, sizeof(int), 1, arquivo)) {
-        popula(item, M);
-    }
-	parada = 1;
-    vetor[0] = item;
-
-    free(arg);
-    pthread_exit(NULL);
+  int item; 
+  while(fread(&item, sizeof(int), 1, arquivo)) {
+    popula(item, M);
+  }
+  
+  for (int i = 0; i < args->qtdThreads; i++) {
+    sem_post(&slotCheio);
+  }
+  
+  vetor[0] = item;
+  
+  free(arg);
+  pthread_exit(NULL);
 }
 
 
 void *consumidor(void * arg) {
 
-    cArgs * args = ( cArgs *) arg;
+  cArgs * args = ( cArgs *) arg;
 
-    while(1) {
-
-        int item = consome(args->M);
-
-        if (item == 0 && parada) {
-            break;
-        }
-
-        if (ehPrimo(item)) {
-            vetor[args->id]++;
-        }
-
+  while(1) {
+  
+    int item = consome(args->M);
+    
+    if (item == 0) {
+      break;
     }
-    free(arg);
-    pthread_exit(NULL);
+    
+    if (ehPrimo(item)) {
+    	vetor[args->id]++;
+    }
+    
+  }
+  
+  free(arg);
+  pthread_exit(NULL);
 }
 
-void criaThreadProdutora(char * nomeArquivo,int M, pthread_t * tid) {
+void criaThreadProdutora(char * nomeArquivo,int M, pthread_t * tid, int qtdThreads) {
 
     pArgs * args = malloc(sizeof(pArgs));
     args->M = M;
     args->nomeArquivo = nomeArquivo;
-
+    args->qtdThreads = qtdThreads;
 
     if (pthread_create(&tid[0], NULL, produtor, args)) {
-        printf("Erro na criacao da thread produtora\n");
-        exit(-1);
+      printf("Erro na criacao da thread produtora\n");
+      exit(-1);
     }
-}
+  }
 
 
 void criaThreadsConsumidoras(int qtdThreads,int M, pthread_t * tid) {
 
-    for(int i=0;i<qtdThreads;i++) {
+    for(int i = 0; i < qtdThreads; i++) {
 
-        cArgs * args = malloc(sizeof(cArgs));
+   	cArgs * args = malloc(sizeof(cArgs));
         args->id = i+1;
         args->M = M;
 
         if (pthread_create(&tid[i+1], NULL, consumidor, args)) {
             printf("Erro na criacao do thread consumidor\n");
             exit(-1);
-        }
     }
+  }
 }
 
 
@@ -159,46 +161,44 @@ int main(int argc, char * argv[]) {
         fprintf(stderr, "Digite ./main <nomeArquivo> <M (tamanho do buffer)> <qtd threads consumidoras> \n");
         return 1;
     }
-
+    
     char * nomeArquivo = argv[1];
     int M = atoi(argv[2]);
     int qtdThreads = atoi(argv[3]);
 
-    sem_init(&slotVazio,0,M);
-    sem_init(&slotCheio, 0,0);
-    sem_init(&mutexGeral,0,1);
-
-
+    sem_init(&slotVazio, 0, M);
+    sem_init(&slotCheio, 0, 0);
+    sem_init(&mutexGeral, 0, 1);
+    
     vetor = malloc(sizeof(int)*(qtdThreads+1));
     Buffer = malloc(sizeof(int)*(M));
-    inicializaVetorContagem(vetor, qtdThreads);
+    inicializaVetorContagem(qtdThreads);
 
     pthread_t tid[qtdThreads+1];
 
-
-    criaThreadProdutora(nomeArquivo,M,tid);
+    criaThreadProdutora(nomeArquivo,M,tid,qtdThreads);
     criaThreadsConsumidoras(qtdThreads,M,tid);
 
-    for (int i = 0; i<qtdThreads+1; i++) {
-        if (pthread_join(tid[i], NULL)) {
-            fprintf(stderr, "Erro pthread_join()");
-            exit(-1);
-        }
+    for (int i = 0; i < qtdThreads+1; i++) {
+    	if (pthread_join(tid[i], NULL)) {
+    		fprintf(stderr, "Erro pthread_join()");
+    		exit(-1);
+    	}
     }
-
+    
     int totalPrimos = 0;
     int vencedora;
     for (int i = 1; i <= qtdThreads; i++) {
-
-        int qtdTemp = 0;
-        vencedora = -1;
-        totalPrimos += vetor[i];
-
-        if (vetor[i] > qtdTemp) {
-            vencedora = i;
-        }
+    
+    	int qtdTemp = 0;
+    	vencedora = -1;
+    	totalPrimos += vetor[i];
+    	
+    	if (vetor[i] > qtdTemp) {
+    	 vencedora = i;
+    	}
     }
-
+    
     printf("A thread vencedora foi: %d\n", vencedora);
     printf("Foram computados %d primos.\n", totalPrimos);
     printf("O arquivo possuía %d primos.\n", vetor[0]);

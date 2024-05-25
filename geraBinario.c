@@ -45,11 +45,14 @@ void geraValoresArquivoBinario(long N, char nome[100]) {
         qtdPrimos += ehPrimo(random_num);
     }
 
-    // adicionando a quantidade de primos esperada no fim do arquivo:
-    fwrite(&qtdPrimos, sizeof (int), 1, p_file);
+     // adicionando a quantidade de primos esperada no fim do arquivo:
+    fwrite(&qtdPrimos,sizeof (int), 1, p_file);
+
 
     // fecha arquivo
     fclose(p_file);
+    
+    printf("%d", qtdPrimos);
 
 }
 
