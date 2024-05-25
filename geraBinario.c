@@ -45,9 +45,6 @@ void geraValoresArquivoBinario(long N, char nome[100]) {
         qtdPrimos += ehPrimo(random_num);
     }
 
-    // adicionando o tamanho na penultima posição:
-    fprintf(p_file, "%ld\n", N);
-
     // adicionando a quantidade de primos esperada no fim do arquivo:
     fprintf(p_file, "%d", qtdPrimos);
 
