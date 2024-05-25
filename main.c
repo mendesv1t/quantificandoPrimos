@@ -10,6 +10,7 @@ sem_t mutexGeral;
 
 int * Buffer;
 int * vetor;
+int parada = 0;
 
 typedef struct {
     int M;
@@ -92,7 +93,7 @@ void *produtor(void * arg) {
     while(fread(&item, sizeof(int), 1, arquivo)) {
         popula(item, M);
     }
-
+	parada = 1;
     vetor[0] = item;
 
     free(arg);
@@ -108,7 +109,7 @@ void *consumidor(void * arg) {
 
         int item = consome(args->M);
 
-        if (item == 0) {
+        if (item == 0 && parada) {
             break;
         }
 

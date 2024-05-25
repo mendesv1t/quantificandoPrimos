@@ -46,7 +46,7 @@ void geraValoresArquivoBinario(long N, char nome[100]) {
     }
 
     // adicionando a quantidade de primos esperada no fim do arquivo:
-    fprintf(p_file, "%d", qtdPrimos);
+    fwrite(&qtdPrimos, sizeof (int), 1, p_file);
 
     // fecha arquivo
     fclose(p_file);
