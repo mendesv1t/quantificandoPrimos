@@ -1,4 +1,4 @@
-##Quantificando primos com threads e semáforos
+## Quantificando primos com threads e semáforos
 
 ### Contexto:
 Este programa concorrente consiste na contagem de primos presente em um arquivo binário fornecido como entrada.
