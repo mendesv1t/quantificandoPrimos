@@ -6,18 +6,18 @@
 
 sem_t slotCheio, slotVazio, mutexGeral; 
 
-int * Buffer;
+int * buffer;
 int * vetor;
 
 typedef struct {
-  int M;
-  int qtdThreads;
-  char * nomeArquivo;
+  int M;  //tamanho do buffer
+  int qtdThreads;  //quantidade de threads
+  char * nomeArquivo; //nome do arquivo de números a ser lido.
 } pArgs;
 
 typedef struct {
-  int id;
-  int M;
+  int id; //id da thread
+  int M; //tamanho do buffer
 } cArgs;
 
 int ehPrimo(int n) {
@@ -47,7 +47,7 @@ void popula (int item, int M) {
    sem_wait(&slotVazio); //aguarda slot vazio para inserir
    sem_wait(&mutexGeral); //exclusao mutua entre produtores (aqui geral para log)
    
-   Buffer[in] = item; 
+   buffer[in] = item;
    in = (in + 1) % M;
 
    sem_post(&mutexGeral);
@@ -63,8 +63,8 @@ int consome (int M) {
    sem_wait(&slotCheio); //aguarda slot cheio para retirar
    sem_wait(&mutexGeral); //exclusao mutua entre consumidores (aqui geral para log)
 
-   item = Buffer[out];
-   Buffer[out] = 0;
+   item = buffer[out];
+   buffer[out] = 0;
    out = (out + 1) % M;
    
    sem_post(&mutexGeral);
@@ -127,6 +127,12 @@ void *consumidor(void * arg) {
 void criaThreadProdutora(char * nomeArquivo,int M, pthread_t * tid, int qtdThreads) {
 
     pArgs * args = malloc(sizeof(pArgs));
+
+    if (!args) {
+        fprintf(stderr, "Erro ao alocar memória para o argumento da thread produtora\n");
+        exit(-1);
+    }
+
     args->M = M;
     args->nomeArquivo = nomeArquivo;
     args->qtdThreads = qtdThreads;
@@ -142,7 +148,13 @@ void criaThreadsConsumidoras(int qtdThreads,int M, pthread_t * tid) {
 
     for(int i = 0; i < qtdThreads; i++) {
 
-   	cArgs * args = malloc(sizeof(cArgs));
+        cArgs * args = malloc(sizeof(cArgs));
+
+        if (!args) {
+            fprintf(stderr, "Erro ao alocar memória para os argumentos das threads consumidoras\n");
+            exit(-1);
+        }
+
         args->id = i+1;
         args->M = M;
 
@@ -171,7 +183,20 @@ int main(int argc, char * argv[]) {
     sem_init(&mutexGeral, 0, 1);
     
     vetor = malloc(sizeof(int)*(qtdThreads+1));
-    Buffer = malloc(sizeof(int)*(M));
+
+    if (!vetor) {
+        fprintf(stderr, "Erro ao alocar memória para vetor de resultados das threads\n");
+        exit(-1);
+    }
+
+    buffer = malloc(sizeof(int)*(M));
+
+    if (!buffer) {
+        fprintf(stderr, "Erro ao alocar memória para o buffer de dados.\n");
+        exit(-1);
+    }
+
+
     inicializaVetorContagem(qtdThreads);
 
     pthread_t tid[qtdThreads+1];
@@ -185,18 +210,30 @@ int main(int argc, char * argv[]) {
     		exit(-1);
     	}
     }
-    
+
     int totalPrimos = 0;
     int vencedora;
+    int qtdTemp = 0;
+
     for (int i = 1; i <= qtdThreads; i++) {
-    
-    	int qtdTemp = 0;
-    	vencedora = -1;
+
     	totalPrimos += vetor[i];
+
     	
     	if (vetor[i] > qtdTemp) {
-    	 vencedora = i;
+    	    vencedora = i;
+            qtdTemp = vetor[i];
     	}
+
+    }
+
+    /*
+ * caso em que o buffer possui o valor
+ * da ultima linha do arquivo (que é a quantidade de primos
+ * e ele é primo:
+ */
+    if (ehPrimo(vetor[0])) {
+        totalPrimos -= 1;
     }
     
     printf("A thread vencedora foi: %d\n", vencedora);
@@ -206,7 +243,8 @@ int main(int argc, char * argv[]) {
     sem_destroy(&slotCheio);
     sem_destroy(&slotVazio);
     sem_destroy(&mutexGeral);
-    free(Buffer);
+
+    free(buffer);
     free(vetor);
     return 0;
 }

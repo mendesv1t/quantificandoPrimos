@@ -48,11 +48,8 @@ void geraValoresArquivoBinario(long N, char nome[100]) {
      // adicionando a quantidade de primos esperada no fim do arquivo:
     fwrite(&qtdPrimos,sizeof (int), 1, p_file);
 
-
     // fecha arquivo
     fclose(p_file);
-    
-    printf("%d", qtdPrimos);
 
 }
 
@@ -72,7 +69,7 @@ int main (int argc, char * argv[]) {
     nomeArquivo = argv[2];
 
     geraValoresArquivoBinario(N, nomeArquivo);
-    printf("Arquivo gerado!\nRode o comando 'gcc - o main main.c -lm' em seguida, rode './main <nomeArquivo> <M (tamanho do buffer)>' para executar\n");
+    printf("Arquivo gerado!\nRode o comando \"gcc -o main main.c -lm\" em seguida, rode './main <nomeArquivo> <M (tamanho do buffer)>' para executar\n");
 
     return 0;
 }
