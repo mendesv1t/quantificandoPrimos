@@ -7,6 +7,8 @@
 sem_t slotCheio, slotVazio, mutexGeral; 
 
 int * buffer;
+
+// esse vetor armazenará a quantidade de primos contados pelas threads consumidoras:
 int * vetor;
 
 typedef struct {
@@ -34,6 +36,9 @@ int ehPrimo(int n) {
 /* método para inicializar vetor que em cada posição, 
  * cujo o id da thread se confere, haverá a contagem de primos
  * de cada thread.
+ * Para a thread produtora, atribuí o valor da quantidade primos total
+ * do arquivo. (vetor[0] = totalPrimos), a fim de verificar a corretude
+ * no fim do programa.
  */
 void inicializaVetorContagem(int qtdThreads) {
     for (int i = 0; i < qtdThreads+1; i++) {
@@ -94,7 +99,8 @@ void *produtor(void * arg) {
   for (int i = 0; i < args->qtdThreads; i++) {
     sem_post(&slotCheio);
   }
-  
+
+  // atribuindo o ultimo valor do arquivo (total de primos) para a thread 0 (produtora):
   vetor[0] = item;
   
   free(arg);
@@ -235,10 +241,18 @@ int main(int argc, char * argv[]) {
     if (ehPrimo(vetor[0])) {
         totalPrimos -= 1;
     }
-    
-    printf("A thread vencedora foi: %d\n", vencedora);
-    printf("Foram computados %d primos.\n", totalPrimos);
-    printf("O arquivo possuía %d primos.\n", vetor[0]);
+
+    //Verificação de teste de corretude antes de imprimir o resultado:
+
+    if (totalPrimos != vetor[0]) {
+        fprintf(stderr, "Erro: o número de primos contado pelas threads é diferente da contagem original do arquivo.\n");
+        exit(-1);
+    }
+    else {
+        printf("A thread vencedora foi: %d\n", vencedora);
+        printf("Foram computados %d primos.\n", totalPrimos);
+        printf("O arquivo possuía %d primos.\n", vetor[0]);
+    }
 
     sem_destroy(&slotCheio);
     sem_destroy(&slotVazio);
