@@ -1,4 +1,4 @@
-## Laboratório 6 da Disciplina: Programação Concorrente, no período 2024.1 
+##Quantificando primos com threads e semáforos
 
 ### Contexto:
 Este programa concorrente consiste na contagem de primos presente em um arquivo binário fornecido como entrada.
